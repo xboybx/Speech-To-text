@@ -48,11 +48,13 @@ export class SpeechToTextService {
 
     // Call v1 media transcribe endpoint
     const response = await deepgram.listen.v1.media.transcribeFile(
-      audioBuffer,
+      {
+        data: audioBuffer,
+        contentType: mimeType,
+      },
       {
         model: 'nova-2',
         smart_format: true,
-        mimetype: mimeType,
       }
     );
 
@@ -80,6 +82,7 @@ export class SpeechToTextService {
     const response = await openai.audio.transcriptions.create({
       file: fileStream,
       model: 'whisper-1',
+      response_format: 'verbose_json',
     });
 
     return {
