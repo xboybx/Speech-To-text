@@ -62,7 +62,7 @@ export class SpeechToTextService {
     const channel = res.results?.channels?.[0];
     const alternative = channel?.alternatives?.[0];
     const text = alternative?.transcript || '';
-    
+
     // Attempt to extract language if detected, fallback to 'en'
     const language = res.metadata?.languages?.[0] || 'en';
 
@@ -76,9 +76,9 @@ export class SpeechToTextService {
     }
 
     const openai = new OpenAI({ apiKey });
-    
+
     const fileStream = fs.createReadStream(filePath);
-    
+
     const response = await openai.audio.transcriptions.create({
       file: fileStream,
       model: 'whisper-1',

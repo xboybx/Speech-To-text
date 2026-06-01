@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import dbConnect from '@/lib/db';
 import Transcript from '@/models/Transcript';
+import { del } from '@vercel/blob';
 
 export async function GET(
   req: NextRequest,
@@ -63,8 +64,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'Transcript not found' }, { status: 404 });
     }
 
-    // Unlink the local audio file if it is stored locally
-    if (transcript.audioUrl.startsWith('/uploads/')) {
+    // Delete the audio file from Vercel Blob if it's a blob storage URL
+    if (transcript.audioUrl.startsWith('https://') || transcript.audioUrl.includes('vercel-storage.com')) {
+      try {
+        await del(transcript.audioUrl);
+      } catch (blobError) {
+        console.error('Failed to delete audio file from Vercel Blob:', blobError);
+      }
+    } else if (transcript.audioUrl.startsWith('/uploads/')) {
+      // Unlink the local audio file if it is stored locally (legacy compatibility)
       const filePath = path.join(process.cwd(), 'public', transcript.audioUrl);
       if (fs.existsSync(filePath)) {
         try {

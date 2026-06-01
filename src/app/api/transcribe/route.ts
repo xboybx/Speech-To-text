@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
-import fs from 'fs';
 import dbConnect from '@/lib/db';
 import Transcript from '@/models/Transcript';
 import { SpeechToTextService } from '@/lib/stt-service';
+import { put } from '@vercel/blob';
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,21 +17,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
     }
 
-    // Prepare upload directory
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
     const fileExtension = path.extname(file.name) || '.webm';
     const fileName = `audio_${Date.now()}${fileExtension}`;
-    const filePath = path.join(uploadDir, fileName);
 
-    // Save file buffer to local disk
-    const buffer = Buffer.from(await file.arrayBuffer());
-    fs.writeFileSync(filePath, buffer);
+    // Convert File to memory Buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    const audioUrl = `/uploads/${fileName}`;
+    // Upload directly to Vercel Blob
+    const blob = await put(fileName, buffer, {
+      access: 'public',
+      contentType: file.type || 'audio/webm',
+    });
+
+    const audioUrl = blob.url;
 
     // Create preliminary transcription record in database
     const transcriptDoc = await Transcript.create({
@@ -44,10 +43,11 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      // Execute the speech-to-text API call
+      // Execute the speech-to-text API call using memory Buffer
       const { text, language } = await SpeechToTextService.transcribeAudio(
-        filePath,
-        file.type || 'audio/webm'
+        buffer,
+        file.type || 'audio/webm',
+        fileName
       );
 
       // Save transcription results on success
