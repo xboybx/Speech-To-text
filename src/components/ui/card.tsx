@@ -5,7 +5,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flat-panel rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden', className)}
+      className={cn('premium-card overflow-hidden', className)}
       {...props}
     />
   )
@@ -13,13 +13,13 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
 Card.displayName = 'Card';
 
 export const CardHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('p-5 border-b border-zinc-800', className)} {...props} />
+  <div className={cn('p-5 border-b border-[#E8E2D9] bg-[#F5F2EB]/30', className)} {...props} />
 );
 CardHeader.displayName = 'CardHeader';
 
 export const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
   <h3
-    className={cn('text-sm font-semibold text-zinc-100 tracking-wide', className)}
+    className={cn('text-sm font-bold text-[#191919] tracking-wide', className)}
     {...props}
   />
 );
@@ -31,7 +31,7 @@ export const CardContent = ({ className, ...props }: React.HTMLAttributes<HTMLDi
 CardContent.displayName = 'CardContent';
 
 export const CardFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('p-5 border-t border-zinc-800 flex items-center', className)} {...props} />
+  <div className={cn('p-5 border-t border-[#E8E2D9] bg-[#F5F2EB]/30 flex items-center', className)} {...props} />
 );
 CardFooter.displayName = 'CardFooter';
 export default Card;

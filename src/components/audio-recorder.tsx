@@ -1,15 +1,25 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Square, Pause, RefreshCw, Upload, AlertCircle } from 'lucide-react';
+import { Mic, Square, Pause, RefreshCw, Upload, AlertCircle, Play, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/utils';
 
 interface AudioRecorderProps {
   onTranscriptionComplete: (transcript: any) => void;
+  sttEngine?: 'deepgram' | 'whisper';
+  language?: string;
+  diarization?: boolean;
+  punctuation?: boolean;
 }
 
-export const AudioRecorder = ({ onTranscriptionComplete }: AudioRecorderProps) => {
+export const AudioRecorder = ({ 
+  onTranscriptionComplete,
+  sttEngine = 'deepgram',
+  language = 'en',
+  diarization = true,
+  punctuation = true
+}: AudioRecorderProps) => {
   const [recordingState, setRecordingState] = useState<'idle' | 'recording' | 'paused' | 'stopped'>('idle');
   const [duration, setDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -60,12 +70,46 @@ export const AudioRecorder = ({ onTranscriptionComplete }: AudioRecorderProps) =
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#27272a'; // zinc-800
-    ctx.lineWidth = 1;
+    
+    // Draw subtle wave patterns representing idle console
+    ctx.strokeStyle = 'rgba(232, 226, 217, 0.9)';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(0, canvas.height / 2);
-    ctx.lineTo(canvas.width, canvas.height / 2);
+    
+    const centerY = canvas.height / 2;
+    ctx.moveTo(0, centerY);
+    
+    // Create a very subtle static wave line
+    for (let x = 0; x < canvas.width; x++) {
+      const angle = (x / canvas.width) * Math.PI * 4;
+      const y = centerY + Math.sin(angle) * 1.5;
+      ctx.lineTo(x, y);
+    }
     ctx.stroke();
+
+    // Draw idle VU Level Meters on both edges
+    const drawIdleVU = (xPos: number) => {
+      const segWidth = 6;
+      const segHeight = 4;
+      const segSpacing = 3;
+      const totalHeight = (segHeight + segSpacing) * 12;
+      const startY = (canvas.height - totalHeight) / 2;
+      
+      ctx.fillStyle = 'rgba(232, 226, 217, 0.8)';
+      for (let j = 0; j < 12; j++) {
+        const yPos = canvas.height - startY - (j * (segHeight + segSpacing)) - segHeight;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(xPos, yPos, segWidth, segHeight, 1);
+        } else {
+          ctx.rect(xPos, yPos, segWidth, segHeight);
+        }
+        ctx.fill();
+      }
+    };
+
+    drawIdleVU(20);
+    drawIdleVU(canvas.width - 26);
   };
 
   const startVisualizer = (stream: MediaStream) => {
@@ -130,26 +174,80 @@ export const AudioRecorder = ({ onTranscriptionComplete }: AudioRecorderProps) =
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const numBars = 40;
-      const spacing = 3;
+      // 1. Draw central frequency wave capsules
+      const numBars = 45;
+      const spacing = 4;
       const totalSpacing = spacing * (numBars - 1);
-      const barWidth = (canvas.width - totalSpacing) / numBars;
-      let x = 0;
+      const barWidth = (canvas.width - totalSpacing - 80) / numBars; // reserve space for VU meters on sides
+      let x = 40; // start after left VU meter
+
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      gradient.addColorStop(0, '#D97756'); // Terracotta clay
+      gradient.addColorStop(1, '#E8A382'); // Peach
+
+      const mutedGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      mutedGradient.addColorStop(0, '#E8E2D9');
+      mutedGradient.addColorStop(1, '#D8D2C9');
+
+      ctx.fillStyle = recordingState === 'recording' ? gradient : mutedGradient;
 
       for (let i = 0; i < numBars; i++) {
-        // Extract frequency data value
         const value = dataArray[i] || 0;
         const percent = value / 255.0;
-        const barHeight = Math.max(2, percent * (canvas.height - 12));
-
-        // Centered vertically
+        const barHeight = Math.max(3, percent * (canvas.height - 24));
         const y = (canvas.height - barHeight) / 2;
 
-        ctx.fillStyle = recordingState === 'recording' ? '#fafafa' : '#71717a'; // White when live, gray when paused
-        ctx.fillRect(x, y, barWidth, barHeight);
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x, y, barWidth, barHeight, 99);
+        } else {
+          ctx.rect(x, y, barWidth, barHeight);
+        }
+        ctx.fill();
 
         x += barWidth + spacing;
       }
+
+      // 2. Draw dual vertical LED Level meters on edges
+      let sum = 0;
+      for (let i = 0; i < 16; i++) {
+        sum += dataArray[i] || 0;
+      }
+      const averageVolume = sum / (16 * 255);
+      const activeSegments = Math.round(averageVolume * 12);
+
+      const drawVUMeter = (xPos: number) => {
+        const segWidth = 6;
+        const segHeight = 4;
+        const segSpacing = 3;
+        const totalHeight = (segHeight + segSpacing) * 12;
+        const startY = (canvas.height - totalHeight) / 2;
+
+        for (let j = 0; j < 12; j++) {
+          const isLit = j < activeSegments && recordingState === 'recording';
+          let color = 'rgba(232, 226, 217, 0.8)'; // unlit segment
+
+          if (isLit) {
+            if (j < 7) color = '#4A7C59'; // Soft green (Normal levels)
+            else if (j < 10) color = '#D97756'; // Clay (Moderate levels)
+            else color = '#B91C1C'; // Red (Clip levels)
+          }
+
+          ctx.fillStyle = color;
+          const yPos = canvas.height - startY - (j * (segHeight + segSpacing)) - segHeight;
+
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(xPos, yPos, segWidth, segHeight, 1);
+          } else {
+            ctx.rect(xPos, yPos, segWidth, segHeight);
+          }
+          ctx.fill();
+        }
+      };
+
+      drawVUMeter(20); // Left VU Meter
+      drawVUMeter(canvas.width - 26); // Right VU Meter
     };
 
     draw();
@@ -189,7 +287,7 @@ export const AudioRecorder = ({ onTranscriptionComplete }: AudioRecorderProps) =
       startVisualizer(stream);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Microphone access denied. Please grant permission.');
+      setError(err.message || 'Microphone access denied. Please grant permission in browser settings.');
       setRecordingState('idle');
     }
   };
@@ -254,6 +352,12 @@ export const AudioRecorder = ({ onTranscriptionComplete }: AudioRecorderProps) =
       formData.append('duration', duration.toString());
       formData.append('title', `Voice Memo ${new Date().toLocaleDateString()}`);
 
+      // Pass configuration states
+      formData.append('engine', sttEngine);
+      formData.append('language', language);
+      formData.append('diarization', diarization ? 'true' : 'false');
+      formData.append('punctuation', punctuation ? 'true' : 'false');
+
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await fetch(`${baseUrl}/api/transcribe`, {
         method: 'POST',
@@ -278,112 +382,149 @@ export const AudioRecorder = ({ onTranscriptionComplete }: AudioRecorderProps) =
 
   return (
     <div className="flex flex-col items-center w-full">
-      {/* Minimal Visualizer Canvas */}
-      <div className="relative w-full h-32 rounded-lg bg-zinc-950 border border-zinc-800 overflow-hidden mb-6 flex items-center justify-center">
+      {/* Premium Visualizer Panel */}
+      <div className="relative w-full h-36 rounded-2xl bg-white border border-[#E8E2D9] overflow-hidden mb-6 flex items-center justify-center shadow-inner">
+        
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-          width={650}
-          height={128}
+          className="absolute inset-0 w-full h-full visualizer-glow opacity-80"
+          width={580}
+          height={144}
         />
         
-        {recordingState === 'idle' && (
-          <div className="absolute top-3 left-4 text-[10px] font-mono text-zinc-500 uppercase tracking-wider z-10">
-            Console Idle
-          </div>
-        )}
+        {/* Status indicators */}
+        <div className="absolute top-4 left-5 z-10 text-[#191919]">
+          {recordingState === 'idle' && (
+            <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest flex items-center gap-2 font-semibold">
+              <span className="h-2 w-2 rounded-full bg-slate-300"></span>
+              Console Ready
+            </div>
+          )}
 
-        {recordingState === 'recording' && (
-          <div className="absolute top-3 left-4 text-[10px] font-mono text-zinc-200 uppercase tracking-wider z-10 flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse-red"></span>
-            Live Recording
-          </div>
-        )}
+          {recordingState === 'recording' && (
+            <div className="text-[10px] font-mono text-brand-pink uppercase tracking-widest flex items-center gap-2 font-semibold">
+              <span className="h-2.5 w-2.5 rounded-full bg-brand-pink animate-pulse-red"></span>
+              Live Capturing
+            </div>
+          )}
 
-        {recordingState === 'paused' && (
-          <div className="absolute top-3 left-4 text-[10px] font-mono text-zinc-500 uppercase tracking-wider z-10">
-            Paused
-          </div>
-        )}
+          {recordingState === 'paused' && (
+            <div className="text-[10px] font-mono text-amber-500 uppercase tracking-widest flex items-center gap-2 font-semibold">
+              <span className="h-2 w-2 rounded-full bg-amber-550 shadow-sm"></span>
+              Capturing Paused
+            </div>
+          )}
 
-        {recordingState === 'stopped' && (
-          <div className="absolute top-3 left-4 text-[10px] font-mono text-zinc-400 uppercase tracking-wider z-10">
-            Audio Buffer Ready
-          </div>
-        )}
+          {recordingState === 'stopped' && (
+            <div className="text-[10px] font-mono text-brand-indigo uppercase tracking-widest flex items-center gap-2 font-semibold">
+              <span className="h-2 w-2 rounded-full bg-brand-indigo shadow-sm"></span>
+              Buffer Rendered
+            </div>
+          )}
+        </div>
 
-        {/* Digital Time */}
+        {/* Floating Digital Timeline */}
         {(recordingState === 'recording' || recordingState === 'paused' || recordingState === 'stopped') && (
-          <div className="absolute bottom-3 right-4 font-mono text-xs text-zinc-400 z-10 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
-            {formatDuration(duration)}
+          <div className="absolute bottom-4 right-5 font-mono text-[11px] text-slate-500 z-10 bg-white border border-[#E8E2D9] px-2.5 py-1 rounded-xl shadow-sm flex items-center gap-1.5">
+            <span className="text-[9px] text-slate-400 font-bold">TIME:</span>
+            <span className="font-bold text-[#191919]">{formatDuration(duration)}</span>
           </div>
         )}
       </div>
 
       {error && (
-        <div className="w-full p-3 rounded-lg bg-red-950/20 border border-red-900/50 text-red-200 text-xs mb-5 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
-          <span>{error}</span>
+        <div className="w-full p-4 rounded-xl bg-brand-pink/5 border border-brand-pink/20 text-brand-pink text-xs mb-5 flex items-start gap-3 shadow-sm">
+          <AlertCircle className="h-4.5 w-4.5 shrink-0 text-brand-pink mt-0.5" />
+          <div className="text-left font-light leading-relaxed">
+            <span className="font-bold">Hardware Alert:</span> {error}
+          </div>
         </div>
       )}
 
-      {/* Control Console */}
-      <div className="flex items-center gap-3 justify-center">
+      {/* Control console */}
+      <div className="flex items-center gap-4 justify-center w-full">
         {recordingState === 'idle' && (
-          <Button onClick={startRecording} variant="primary" className="rounded-lg gap-2 px-5 py-2 text-xs">
-            <Mic className="h-4 w-4" /> Start Recording
+          <Button 
+            onClick={startRecording} 
+            variant="primary" 
+            className="rounded-xl gap-2 px-6 py-2.5 text-xs font-mono uppercase tracking-wider shadow-sm"
+          >
+            <Mic className="h-4.5 w-4.5" /> Start Recording
           </Button>
         )}
 
         {recordingState === 'recording' && (
-          <>
-            <Button onClick={pauseRecording} variant="secondary" className="rounded-lg gap-1.5 px-4 text-xs">
-              Pause
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={pauseRecording} 
+              variant="secondary" 
+              className="rounded-xl gap-1.5 px-5 h-10 text-xs font-mono"
+            >
+              <Pause className="h-4 w-4 mr-0.5" /> Pause
             </Button>
-            <Button onClick={stopRecording} variant="danger" className="rounded-lg gap-1.5 px-4 text-xs">
-              <Square className="h-3.5 w-3.5" /> Stop
+            <Button 
+              onClick={stopRecording} 
+              variant="danger" 
+              className="rounded-xl gap-1.5 px-5 h-10 text-xs font-mono uppercase tracking-wider"
+            >
+              <Square className="h-4 w-4 mr-0.5" /> Stop Capture
             </Button>
-          </>
+          </div>
         )}
 
         {recordingState === 'paused' && (
-          <>
-            <Button onClick={resumeRecording} variant="primary" className="rounded-lg gap-1.5 px-4 text-xs">
-              Resume
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={resumeRecording} 
+              variant="primary" 
+              className="rounded-xl gap-1.5 px-5 h-10 text-xs font-mono uppercase tracking-wider"
+            >
+              <Play className="h-4 w-4 mr-0.5 fill-white animate-pulse" /> Resume
             </Button>
-            <Button onClick={stopRecording} variant="danger" className="rounded-lg gap-1.5 px-4 text-xs">
-              <Square className="h-3.5 w-3.5" /> Stop
+            <Button 
+              onClick={stopRecording} 
+              variant="danger" 
+              className="rounded-xl gap-1.5 px-5 h-10 text-xs font-mono uppercase tracking-wider"
+            >
+              <Square className="h-4 w-4 mr-0.5" /> Stop Capture
             </Button>
-          </>
+          </div>
         )}
 
         {recordingState === 'stopped' && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4 flex-wrap justify-center w-full max-w-md bg-[#F5F2EB]/50 border border-[#E8E2D9] p-3 rounded-2xl">
             {audioUrl && (
-              <audio src={audioUrl} controls className="h-8 max-w-[210px] border border-zinc-850 rounded" />
+              <audio 
+                src={audioUrl} 
+                controls 
+                className="h-8.5 max-w-[210px] outline-none rounded-lg border-0 bg-transparent text-xs text-[#191919]" 
+              />
             )}
             
-            <Button
-              onClick={handleTranscribe}
-              isLoading={isTranscribing}
-              variant="primary"
-              className="rounded-lg px-4 text-xs"
-            >
-              <Upload className="h-3.5 w-3.5 mr-1.5" /> Transcribe
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleTranscribe}
+                isLoading={isTranscribing}
+                variant="primary"
+                className="rounded-xl px-5 h-9 text-xs font-mono uppercase tracking-wider"
+              >
+                <Sparkles className="h-4.5 w-4.5 mr-1.5 text-orange-100" /> Transcribe
+              </Button>
 
-            <Button
-              onClick={resetRecorder}
-              variant="outline"
-              className="rounded-lg p-2 h-8 w-8 flex items-center justify-center"
-              title="Discard & Reset"
-            >
-              <RefreshCw className="h-3.5 w-3.5 text-zinc-550 hover:text-zinc-200" />
-            </Button>
+              <Button
+                onClick={resetRecorder}
+                variant="outline"
+                className="rounded-xl p-2.5 h-9 w-9 flex items-center justify-center border-[#E8E2D9] hover:bg-[#F5F2EB]/50"
+                title="Discard & Reset"
+              >
+                <RefreshCw className="h-4 w-4 text-slate-500 hover:text-slate-700 transition-colors" />
+              </Button>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
 };
+
 export default AudioRecorder;

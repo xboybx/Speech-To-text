@@ -14,18 +14,18 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          'inline-flex items-center justify-center rounded-lg font-medium transition-colors duration-150 disabled:pointer-events-none disabled:opacity-40 cursor-pointer select-none',
+          'inline-flex items-center justify-center font-medium transition-all duration-200 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 cursor-pointer select-none',
           {
-            // Variants
-            'bg-zinc-100 text-zinc-950 hover:bg-zinc-200': variant === 'primary',
-            'bg-zinc-800 text-zinc-100 hover:bg-zinc-700': variant === 'secondary',
-            'bg-red-900 text-red-100 hover:bg-red-800': variant === 'danger',
-            'hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-100': variant === 'ghost',
-            'border border-zinc-800 hover:bg-zinc-900 text-zinc-250 hover:text-zinc-100': variant === 'outline',
+            // Variants styled in warm Claude clay / beige theme
+            'bg-brand-indigo text-white shadow-sm hover:bg-[#c66847] border border-[#c66847]': variant === 'primary',
+            'bg-[#F5F2EB] text-[#191919] hover:bg-[#EAE5DA] border border-[#E8E2D9]': variant === 'secondary',
+            'bg-brand-pink text-white hover:bg-red-800 shadow-sm': variant === 'danger',
+            'hover:bg-[#F5F2EB]/60 text-slate-500 hover:text-[#191919]': variant === 'ghost',
+            'border border-[#E8E2D9] hover:bg-[#F5F2EB]/50 hover:border-[#D5CFC4] text-[#191919]': variant === 'outline',
             // Sizes
-            'px-3.5 py-1.5 text-xs': size === 'sm',
-            'px-4 py-2 text-sm': size === 'md',
-            'px-5 py-2.5 text-base': size === 'lg',
+            'px-3 py-1.5 text-xs rounded-md': size === 'sm',
+            'px-4 py-2 text-sm rounded-lg': size === 'md',
+            'px-5 py-2.5 text-base rounded-xl': size === 'lg',
           },
           className
         )}

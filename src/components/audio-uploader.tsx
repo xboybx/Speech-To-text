@@ -1,18 +1,28 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileAudio, AlertCircle, X } from 'lucide-react';
+import { UploadCloud, FileAudio, AlertCircle, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFileSize } from '@/lib/utils';
 
 interface AudioUploaderProps {
   onTranscriptionComplete: (transcript: any) => void;
+  sttEngine?: 'deepgram' | 'whisper';
+  language?: string;
+  diarization?: boolean;
+  punctuation?: boolean;
 }
 
 const SUPPORTED_FORMATS = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/x-m4a', 'audio/m4a', 'audio/webm', 'audio/ogg', 'video/webm'];
 const MAX_FILE_SIZE_MB = 25;
 
-export const AudioUploader = ({ onTranscriptionComplete }: AudioUploaderProps) => {
+export const AudioUploader = ({ 
+  onTranscriptionComplete,
+  sttEngine = 'deepgram',
+  language = 'en',
+  diarization = true,
+  punctuation = true
+}: AudioUploaderProps) => {
   const [isDragActive, setIsDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -33,7 +43,7 @@ export const AudioUploader = ({ onTranscriptionComplete }: AudioUploaderProps) =
     setError(null);
     const sizeInMB = selectedFile.size / (1024 * 1024);
     if (sizeInMB > MAX_FILE_SIZE_MB) {
-      setError(`File size exceeds the ${MAX_FILE_SIZE_MB}MB limit.`);
+      setError(`File size exceeds the ${MAX_FILE_SIZE_MB}MB maximum threshold allowed by the parser.`);
       return false;
     }
 
@@ -42,7 +52,7 @@ export const AudioUploader = ({ onTranscriptionComplete }: AudioUploaderProps) =
     const isSupportedExtension = ['mp3', 'wav', 'm4a', 'webm', 'ogg'].includes(fileExtension || '');
 
     if (!isSupportedType && !isSupportedExtension) {
-      setError('Unsupported file format. Please upload MP3, WAV, M4A, WEBM, or OGG.');
+      setError('Unsupported file type. Please upload a standard MP3, WAV, M4A, WEBM, or OGG container.');
       return false;
     }
 
@@ -97,6 +107,12 @@ export const AudioUploader = ({ onTranscriptionComplete }: AudioUploaderProps) =
       const cleanTitle = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
       formData.append('title', cleanTitle);
 
+      // Pass configuration states to server API
+      formData.append('engine', sttEngine);
+      formData.append('language', language);
+      formData.append('diarization', diarization ? 'true' : 'false');
+      formData.append('punctuation', punctuation ? 'true' : 'false');
+
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await fetch(`${baseUrl}/api/transcribe`, {
         method: 'POST',
@@ -113,7 +129,7 @@ export const AudioUploader = ({ onTranscriptionComplete }: AudioUploaderProps) =
       resetUploader();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Error occurred during transcription.');
+      setError(err.message || 'Error occurred during transcription processing.');
     } finally {
       setIsTranscribing(false);
     }
@@ -121,21 +137,21 @@ export const AudioUploader = ({ onTranscriptionComplete }: AudioUploaderProps) =
 
   return (
     <div className="w-full flex flex-col items-center">
-      {/* Minimal Matte Box */}
+      {/* Matte Dropzone Panel */}
       <div
         onDragEnter={handleDrag}
         onDragOver={handleDrag}
         onDragLeave={handleDrag}
         onDrop={handleDrop}
         onClick={handleUploadClick}
-        className={`w-full p-8 rounded-lg border border-dashed transition-colors duration-150 flex flex-col items-center justify-center ${
+        className={`w-full p-8 rounded-2xl border border-dashed transition-all duration-300 flex flex-col items-center justify-center ${
           !file ? 'cursor-pointer' : ''
         } ${
           isDragActive
-            ? 'border-zinc-400 bg-zinc-900/40'
+            ? 'border-brand-indigo bg-brand-indigo/5 shadow-sm'
             : file
-            ? 'border-zinc-800 bg-zinc-900/20'
-            : 'border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900/30 hover:border-zinc-700'
+            ? 'border-[#E8E2D9] bg-[#F5F2EB]/20'
+            : 'border-[#E8E2D9] bg-white hover:bg-[#F5F2EB]/30 hover:border-[#D5CFC4]'
         }`}
       >
         <input
@@ -148,48 +164,48 @@ export const AudioUploader = ({ onTranscriptionComplete }: AudioUploaderProps) =
 
         {!file ? (
           <>
-            <div className="p-3 bg-zinc-950 rounded-lg border border-zinc-850 mb-3 text-zinc-400">
-              <UploadCloud className="h-5 w-5" />
+            <div className="p-3 bg-[#F5F2EB]/80 rounded-2xl border border-[#E8E2D9] mb-3 text-slate-500 shadow-sm">
+              <UploadCloud className="h-6 w-6 text-brand-indigo" />
             </div>
-            <p className="text-xs text-zinc-200 font-medium mb-1 text-center">
-              Drag and drop audio file, or <span className="text-zinc-100 underline hover:text-white">browse</span>
+            <p className="text-xs text-[#191919] font-semibold mb-1 text-center">
+              Drag & drop audio files here, or <span className="text-brand-indigo underline hover:text-[#c66847] transition-colors">browse files</span>
             </p>
-            <p className="text-[10px] text-zinc-500 tracking-wider text-center uppercase font-mono">
-              MP3, WAV, M4A, WEBM, OGG (Max {MAX_FILE_SIZE_MB}MB)
+            <p className="text-[10px] text-slate-400 tracking-wider text-center uppercase font-mono mt-1">
+              MP3, WAV, M4A, WEBM, OGG (MAX LIMIT {MAX_FILE_SIZE_MB}MB)
             </p>
           </>
         ) : (
-          <div className="w-full flex items-center justify-between gap-4">
+          <div className="w-full flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap bg-[#F5F2EB]/30 border border-[#E8E2D9] p-3 rounded-xl">
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="p-2.5 bg-zinc-800 rounded-lg border border-zinc-700 text-zinc-300 shrink-0">
+              <div className="p-2.5 bg-brand-indigo/10 rounded-xl border border-brand-indigo/25 text-brand-indigo shrink-0">
                 <FileAudio className="h-5 w-5" />
               </div>
               <div className="overflow-hidden text-left">
-                <p className="text-xs font-semibold text-zinc-200 truncate">{file.name}</p>
-                <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{formatFileSize(file.size)}</p>
+                <p className="text-xs font-bold text-[#191919] truncate">{file.name}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">{formatFileSize(file.size)}</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               <Button
                 onClick={handleTranscribe}
                 isLoading={isTranscribing}
                 variant="primary"
                 size="sm"
-                className="px-4 rounded-md h-8 text-xs"
+                className="px-4.5 rounded-lg h-9 text-xs font-mono uppercase tracking-wider shadow-sm"
               >
-                Transcribe
+                <Sparkles className="h-3.5 w-3.5 mr-1 text-orange-100" /> Transcribe
               </Button>
               
               {!isTranscribing && (
                 <Button
                   onClick={resetUploader}
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
-                  className="rounded-md p-1.5 h-8 w-8 flex items-center justify-center"
-                  title="Remove file"
+                  className="rounded-lg p-2 h-9 w-9 flex items-center justify-center border-[#E8E2D9] hover:bg-[#F5F2EB]/50 bg-white"
+                  title="Remove File"
                 >
-                  <X className="h-4 w-4 text-zinc-400 hover:text-zinc-200" />
+                  <X className="h-4 w-4 text-slate-500 hover:text-[#191919]" />
                 </Button>
               )}
             </div>
@@ -198,12 +214,15 @@ export const AudioUploader = ({ onTranscriptionComplete }: AudioUploaderProps) =
       </div>
 
       {error && (
-        <div className="w-full p-3 rounded-lg bg-red-950/20 border border-red-900/50 text-red-200 text-xs mt-3 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
-          <span>{error}</span>
+        <div className="w-full p-4 rounded-xl bg-brand-pink/5 border border-brand-pink/20 text-brand-pink text-xs mt-4 flex items-start gap-3 shadow-sm">
+          <AlertCircle className="h-4.5 w-4.5 shrink-0 text-brand-pink mt-0.5" />
+          <div className="text-left font-light leading-relaxed">
+            <span className="font-bold">Uploader Alert:</span> {error}
+          </div>
         </div>
       )}
     </div>
   );
 };
+
 export default AudioUploader;

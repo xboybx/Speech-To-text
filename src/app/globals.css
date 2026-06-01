@@ -1,58 +1,81 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
+  --background: #FBF9F6; /* Warm Ivory Canvas */
+  --foreground: #191919; /* Warm Soft Charcoal */
   
-  --card-bg: #18181b;
-  --card-border: #27272a;
+  --card-bg: #FFFFFF;    /* Clean White Cards */
+  --card-border: #E8E2D9; /* Warm Light Cream Border */
   
-  --primary: #ffffff;
-  --primary-foreground: #09090b;
-  
-  --muted: #71717a;
-  --muted-foreground: #a1a1aa;
+  --primary-glow: rgba(217, 119, 86, 0.08);
 }
 
 @theme {
+  --font-sans: var(--font-poppins), sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card-bg: var(--card-bg);
   --color-card-border: var(--card-border);
+  
+  --color-brand-indigo: #D97756; /* Terracotta Clay Accent */
+  --color-brand-cyan: #4A7C59;   /* Forest Green Accent */
+  --color-brand-pink: #B91C1C;   /* Crimson Coral */
+  --color-brand-purple: #C87A53; /* Light Earth Accent */
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-poppins), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
+  
+  /* Soft warm timeline grid lines */
+  background-image: 
+    linear-gradient(rgba(217, 119, 86, 0.007) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(217, 119, 86, 0.007) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-attachment: fixed;
 }
 
-/* Minimal Flat Panels */
-.flat-panel {
+/* Premium Claude Style Card */
+.premium-card {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
+  box-shadow: 
+    0 1px 2px rgba(25, 25, 25, 0.02),
+    0 4px 12px rgba(25, 25, 25, 0.03);
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
 }
 
-.flat-input {
-  background-color: #09090b;
-  border: 1px solid #27272a;
-  color: #fafafa;
+.premium-card:hover {
+  border-color: #D97756;
+  box-shadow: 
+    0 2px 4px rgba(217, 119, 86, 0.04),
+    0 10px 20px -10px rgba(217, 119, 86, 0.08);
+}
+
+/* Developer Console Custom Input styling */
+.premium-input {
+  background-color: #FFFFFF;
+  border: 1px solid #E8E2D9;
+  color: #191919;
   border-radius: 8px;
-  font-size: 0.875rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  transition: all 0.15s ease;
 }
 
-.flat-input:focus {
+.premium-input:focus {
   outline: none;
-  border-color: #52525b;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+  border-color: #D97756;
+  box-shadow: 0 0 0 2.5px rgba(217, 119, 86, 0.12);
 }
 
-/* Minimal Scrollbars */
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -60,24 +83,39 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 2px;
+  background: #E8E2D9;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #D8D2C9;
 }
 
-/* Flat Red Recording Indicator Animation */
-@keyframes pulseRed {
+/* LED Level Status indicators */
+@keyframes levelPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.led-level-glow {
+  box-shadow: 0 0 6px currentColor;
+}
+
+.led-level-animate {
+  animation: levelPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseRedGlow {
   0%, 100% {
-    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0px rgba(185, 28, 28, 0.2);
   }
   50% {
-    opacity: 0.4;
+    transform: scale(1.02);
+    box-shadow: 0 0 10px 2px rgba(185, 28, 28, 0.1);
   }
 }
 
 .animate-pulse-red {
-  animation: pulseRed 1.5s infinite ease-in-out;
+  animation: pulseRedGlow 1.8s infinite cubic-bezier(0.4, 0, 0.2, 1);
 }
