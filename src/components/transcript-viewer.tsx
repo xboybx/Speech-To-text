@@ -191,7 +191,11 @@ export const TranscriptViewer = ({ transcript, onUpdate }: TranscriptViewerProps
       {/* Hidden Audio Element */}
       <audio
         ref={audioRef}
-        src={transcript.audioUrl}
+        src={
+          transcript.audioUrl.startsWith('https://') && transcript.audioUrl.includes('vercel-storage.com')
+            ? `/api/audio?url=${encodeURIComponent(transcript.audioUrl)}`
+            : transcript.audioUrl
+        }
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleAudioEnded}

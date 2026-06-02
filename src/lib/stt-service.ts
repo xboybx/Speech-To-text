@@ -1,6 +1,5 @@
-import fs from 'fs';
 import { DeepgramClient } from '@deepgram/sdk';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 
 interface TranscriptionResult {
   text: string;
@@ -17,24 +16,21 @@ export class SpeechToTextService {
   }
 
   public static async transcribeAudio(
-    filePath: string,
-    mimeType: string
+    audioBuffer: Buffer,
+    mimeType: string,
+    fileName: string
   ): Promise<TranscriptionResult> {
     const provider = this.getProvider();
 
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`Audio file not found at path: ${filePath}`);
-    }
-
     if (provider === 'deepgram') {
-      return this.transcribeWithDeepgram(filePath, mimeType);
+      return this.transcribeWithDeepgram(audioBuffer, mimeType);
     } else {
-      return this.transcribeWithWhisper(filePath);
+      return this.transcribeWithWhisper(audioBuffer, mimeType, fileName);
     }
   }
 
   private static async transcribeWithDeepgram(
-    filePath: string,
+    audioBuffer: Buffer,
     mimeType: string
   ): Promise<TranscriptionResult> {
     const apiKey = process.env.DEEPGRAM_API_KEY;
@@ -44,7 +40,6 @@ export class SpeechToTextService {
 
     // Initialize using the new v5 DeepgramClient class
     const deepgram = new DeepgramClient({ apiKey });
-    const audioBuffer = fs.readFileSync(filePath);
 
     // Call v1 media transcribe endpoint
     const response = await deepgram.listen.v1.media.transcribeFile(
@@ -69,7 +64,11 @@ export class SpeechToTextService {
     return { text, language };
   }
 
-  private static async transcribeWithWhisper(filePath: string): Promise<TranscriptionResult> {
+  private static async transcribeWithWhisper(
+    audioBuffer: Buffer,
+    mimeType: string,
+    fileName: string
+  ): Promise<TranscriptionResult> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY is not defined in environment variables.');
@@ -77,10 +76,11 @@ export class SpeechToTextService {
 
     const openai = new OpenAI({ apiKey });
 
-    const fileStream = fs.createReadStream(filePath);
+    // Convert Buffer to file object for Whisper upload using OpenAI helper
+    const file = await toFile(audioBuffer, fileName, { type: mimeType });
 
     const response = await openai.audio.transcriptions.create({
-      file: fileStream,
+      file: file,
       model: 'whisper-1',
       response_format: 'verbose_json',
     });
@@ -91,3 +91,4 @@ export class SpeechToTextService {
     };
   }
 }
+

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     // Upload directly to Vercel Blob
     const blob = await put(fileName, buffer, {
-      access: 'public',
+      access: 'private',
       contentType: file.type || 'audio/webm',
     });
 
